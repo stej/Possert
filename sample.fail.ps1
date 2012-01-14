@@ -23,3 +23,21 @@ test 'testing expected exception - DivideByZeroException' {
 		that 1 -istrue
 	} -expected System.DivideByZeroException
 }
+
+test 'arrange throws exception' {
+	arrange { throw 'arrange thrown' }
+	act { }
+	assert { }
+}
+
+test 'act throws exception' {
+	arrange { }
+	act { throw 'act thrown' }
+	assert { }
+}
+
+test 'assert throws exception' {
+	arrange { }
+	act { }
+	assert { throw 'assert thrown' }
+}

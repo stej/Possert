@@ -1,21 +1,25 @@
 test test1 {
-  category no-assert
+	category no-assert
 }
 
 test test2 {
-  category with-assert
-  assert { that 1 -eq 1 }
+	category with-assert
+	assert { that 1 -eq 1 }
 }
-test test3 {
-  category random, with-assert
-  assert { that (get-random -min 0 -max 10) -lt 5 }
+test test3-mightFail {
+	category random, with-assert
+	assert { that (get-random -min 0 -max 1000) -lt 999 }
 }
 test 'long running test' {
-  category with-assert, long-running
+	category with-assert, long-running
 	act {
-		Start-Sleep -Seconds 1
+		Start-Sleep -mil 500
 	}
 	assert {
 		$true
 	}
+}
+test test5 {
+	category with-assert, last
+	assert { $true }
 }
