@@ -1,6 +1,6 @@
 $root = split-path $myinvocation.MyCommand.Path
 
-ipmo $root\posserts.psm1 -force -verbose
+ipmo $root\possert.psm1 -force -verbose
 
 filter withoutTotal {
 	if ($_.Test -ne '--total--') { $_ }
