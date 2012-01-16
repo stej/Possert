@@ -7,26 +7,26 @@
 	
 	$test = New-Object PsObject -Property @{
 		Categories = @()
-		Arrange = $null
-		Act = $null
-		Assert = $null
+		Arrange = {}
+		Act = {}
+		Assert = {}
+		Cleanup = {}
+		CleanupPerformed = $false
 		Result = $null
 		Skipped = $false
 		StopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 	}
 	& { 
-		try {
+		try {			
 			& $definition
 			
 			if (!$CategoriesBasedDecider -or
 				(& $CategoriesBasedDecider $test.Categories)) {        # categories to run (set by Invoke-TestFile
-				if ($test.Arrange) {
-					. $test.Arrange
-				}
-				if ($test.Act) {
-					. $test.Act
-				}
+				
+				. $test.Arrange
+				. $test.Act
 				$test.Result = runAssert $test
+				runCleanup $test
 			} else {
 				$test.Skipped = $true
 			}
@@ -35,6 +35,8 @@
 			Write-Warning "Exception thrown: $_"
 			addGlobalError $_
 			$test.Result = $false
+			
+			runCleanup $test
 		}
 		finally {
 			$test.StopWatch.Stop() | Out-Null
@@ -77,6 +79,13 @@ function Set-Assert {
 		Definition = $definition
 		ExpectedException = $expectedException 
 	}
+}
+
+function Set-Cleanup {
+	param(
+		[Parameter(Mandatory=$true)][scriptblock]$definition
+	)
+	$test.Cleanup = $definition
 }
 
 function Invoke-TestFile {
@@ -170,7 +179,11 @@ function Test-Condition {
 			$r
 		}
 		'eq' { Write-Debug "$testedValue EQ $expectedValue"
-			   $r = $testedValue -eq $expectedValue
+			   if ($expectedValue -is [array]) {
+			   		$r = @(Compare-Object $testedValue $expectedValue).Count -eq 0
+			   } else {
+			   		$r = $testedValue -eq $expectedValue
+			   }
 			   if (!$r) { Write-Warning "Assertion failed: '$testedValue' is not equal to '$expectedValue'!" }
 			   $r
 		}
@@ -289,6 +302,18 @@ function runAssert {
 	}
 }
 
+function runCleanup {
+	param($testDefinition)
+	try {
+		if (!$testDefinition.CleanupPerformed -and $testDefinition.Cleanup) {
+			$testDefinition.CleanupPerformed = $true
+			& $testDefinition.Cleanup
+		}
+	} catch {
+		& $addGlobalError $_
+	}
+}
+
 function addGlobalError {
 	param($Error)
 	if (!(Test-Path variable:global:posserts_globaerrors)) { 
@@ -304,7 +329,8 @@ Set-Alias test New-Test
 Set-Alias arrange Set-Arrange
 Set-Alias act Set-Act
 Set-Alias assert Set-Assert
+Set-Alias cleanup Set-Cleanup
 Set-Alias category Add-Category
 Set-Alias that Test-Condition
 
-Export-ModuleMember -Alias * -Function New-Test, Set-Arrange, Set-Act, Set-Assert, Add-Category, Test-Condition, Invoke-TestFile
+Export-ModuleMember -Alias * -Function New-Test, Set-Arrange, Set-Act, Set-Assert, Set-Cleanup, Add-Category, Test-Condition, Invoke-TestFile

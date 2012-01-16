@@ -1,6 +1,7 @@
 $root = split-path $myinvocation.MyCommand.Path
-
 ipmo $root\possert.psm1 -force -verbose
+
+#ipmo f:\data\src\PowerShell\dev\possert\possert.psm1
 
 filter withoutTotal {
 	if ($_.Test -ne '--total--') { $_ }
@@ -107,4 +108,11 @@ test 'total time is equal to sum of times of all tests' {
 	assert { 
 		that $resultsOnlyTotal.Time -eq $timeSumNoTotal
 	}
+}
+
+test 'cleanup works' {
+	category cleanup
+	arrange { $testVar = 'this is test variable' }
+	assert { $true }
+	cleanup { Write-Host "Cleaning '$testVar'" }
 }
