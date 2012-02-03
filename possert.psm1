@@ -179,11 +179,7 @@ function Test-Condition {
 			$r
 		}
 		'eq' { Write-Debug "$testedValue EQ $expectedValue"
-			   if ($expectedValue -is [array]) {
-			   		$r = @(Compare-Object $testedValue $expectedValue).Count -eq 0
-			   } else {
-			   		$r = $testedValue -eq $expectedValue
-			   }
+			   $r = equalObjects $testedValue $expectedValue
 			   if (!$r) { Write-Warning "Assertion failed: '$testedValue' is not equal to '$expectedValue'!" }
 			   $r
 		}
@@ -323,6 +319,69 @@ function addGlobalError {
 }
 function clearGlobalErrors {
 	$global:posserts_globaerrors = @()
+}
+
+function equalObjects($o1, $o2) {
+	function equalTypes($a, $b) {
+		$a.GetType() -eq $b.GetType()
+	}
+	function compareArray($a, $b) {
+		Write-Debug "Compare array '$a' '$b'"
+		if ($a.Count -ne $b.Count) {
+			Write-Warning "Keys count is not the same. $($a.Keys.Count) vs. $($b.Keys.Count)."
+			return $false
+		}
+		foreach($i in 0..($a.Count-1)) {
+			if (! (equalObjects $a[$i] $b[$i])) {
+				Write-Warning "Objects under index $i are different"
+				return $false
+			}
+		}
+		return $true
+	}
+	function compareHashtable($a, $b) {
+		Write-Debug "Compare hashtable '$a' '$b'"
+		if ($a.Keys.Count -ne $b.Keys.Count) {
+			Write-Warning "Keys count is not the same. $($a.Keys.Count) vs. $($b.Keys.Count)."
+			return $false
+		}
+		foreach($key in $a.Keys) {
+			if (!$b.ContainsKey($key)) {
+				Write-Warning "Key $key not found."
+				return $false
+			}
+			if (! (equalObjects $b[$key] $a[$key])) {
+				Write-Warning "Objects under key $key are different"
+				return $false
+			}
+		}
+		return $true
+	}
+	function comparePsObject($a, $b) {
+		Write-Debug "Compare PsObject '$a' '$b'"
+		$props = $a.PsObject.Members | ? { 'NoteProperty', 'Property', 'ScriptProperty' -contains $_.MemberType }
+		foreach($member in $props) {
+			if (! (equalObjects $a.$($member.Name) $b.$($member.Name) )) {
+				Write-Warning "Members $($member.Name) are different."
+				return $false
+			}
+		}
+		return $true
+	}
+	function compareGeneric($a, $b) {
+		Write-Debug "Compare generic: '$a'($($a.GetType().Name)) '$b'($($b.GetType().Name))"
+		$differences = Compare-Object $a $b
+		Write-Debug "Differences: $($differences | fl * | Out-String), $([bool] $differences)"
+		return !([bool] $differences)
+	}
+	if (! (equalTypes $o1 $o2)) {
+		Write-Warning "Not equal types. $($o1.GetType().Name) vs. $($o2.GetType().Name)"
+	}
+    
+	if ($o1 -is [array]) { compareArray $o1 $o2 }
+	elseif ($o1 -is [hashtable]) { compareHashtable $o1 $o2 }
+	elseif ($o1 -is [psobject]) { comparePsObject $o1 $o2 }
+	else { compareGeneric $o1 $o2	}
 }
 
 Set-Alias test New-Test
